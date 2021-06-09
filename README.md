@@ -5,9 +5,10 @@ Once provisioned the instances can be used to demo Performance and DR replicatio
 Still very much a work in progress.
 
 Inspired by:
-https://banzaicloud.com/blog/multi-cluster-testing/
-https://www.thehumblelab.com/kind-and-metallb-on-mac/
-https://github.com/AlmirKadric-Published/docker-tuntap-osx
+https://banzaicloud.com/blog/multi-cluster-testing/  
+https://www.thehumblelab.com/kind-and-metallb-on-mac/  
+https://github.com/AlmirKadric-Published/docker-tuntap-osx  
+
 
 
 ## Prerequisites
