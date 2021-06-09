@@ -1,0 +1,218 @@
+# Vault Helm Chart Value Overrides
+global:
+  enabled: true
+  tlsDisable: false
+
+injector:
+  enabled: false
+  # # Use the Vault K8s Image https://github.com/hashicorp/vault-k8s/
+  # image:
+  #   repository: "hashicorp/vault-k8s"
+  #   tag: "latest"
+
+  # resources:
+  #     requests:
+  #       memory: 256Mi
+  #       cpu: 250m
+  #     limits:
+  #       memory: 256Mi
+  #       cpu: 250m
+
+server:
+  # IG - trying this out for internal LB
+  # service:
+  #   annotations:
+  #     networking.gke.io/load-balancer-type: "Internal"
+  #   type: "LoadBalancer"
+
+  # Ingress allows ingress services to be created to allow external access
+  # from Kubernetes to access Vault pods.
+  # If deployment is on OpenShift, the following block is ignored.
+  # In order to expose the service, use the route section below
+  # ingress:
+  #   enabled: true
+  #   labels:
+  #     {}
+  #     # traffic: external
+  #   annotations:
+  #     {}
+  #     # |
+  #     # kubernetes.io/ingress.class: nginx
+  #     # kubernetes.io/tls-acme: "true"
+  #     #   or
+  #     # kubernetes.io/ingress.class: nginx
+  #     # kubernetes.io/tls-acme: "true"
+  #   hosts:
+  #     - host: chart-example.local
+  #       paths: []
+  #   ## Extra paths to prepend to the host configuration. This is useful when working with annotation based services.
+  #   extraPaths: []
+  #   # - path: /*
+  #   #   backend:
+  #   #     serviceName: ssl-redirect
+  #   #     servicePort: use-annotation
+  #   tls: []
+  #   #  - secretName: chart-example-tls
+  #   #    hosts:
+  #   #      - chart-example.local
+
+  # IG change services to node ports
+  service:
+    enabled: true
+    # # clusterIP controls whether a Cluster IP address is attached to the
+    # # Vault service within Kubernetes.  By default the Vault service will
+    # # be given a Cluster IP address, set to None to disable.  When disabled
+    # # Kubernetes will create a "headless" service.  Headless services can be
+    # # used to communicate with pods directly through DNS instead of a round robin
+    # # load balancer.
+    # # clusterIP: None
+
+    # # Configures the service type for the main Vault service.  Can be ClusterIP
+    # # or NodePort.
+    # type: NodePort
+
+    # # If type is set to "NodePort", a specific nodePort value can be configured,
+    # # will be random if left blank.
+    # # nodePort: 30000
+
+    # # Port on which Vault server is listening
+    # port: 8200
+    # # Target port to which the service should be mapped to
+    # targetPort: 8200
+    # # Extra annotations for the service definition. This can either be YAML or a
+    # # YAML-formatted multi-line templated string map of the annotations to apply
+    # # to the service.
+    # annotations: {}
+
+  # Use the Enterprise Image
+  image:
+    repository: "hashicorp/vault-enterprise"
+    tag: "1.7.2_ent"
+
+  # These Resource Limits are in line with node requirements in the
+  # Vault Reference Architecture for a Small Cluster
+  # resources:
+  #   requests:
+  #     memory: 8Gi
+  #     cpu: 2000m
+  #   limits:
+  #     memory: 16Gi
+  #     cpu: 2000m
+
+  # For HA configuration and because we need to manually init the vault,
+  # we need to define custom readiness/liveness Probe settings
+  # readinessProbe:
+  #   enabled: true
+  #   path: "/v1/sys/health?standbyok=true&sealedcode=204&uninitcode=204"
+  # livenessProbe:
+  #   enabled: true
+  #   path: "/v1/sys/health?standbyok=true"
+  #   initialDelaySeconds: 60
+
+  # extraEnvironmentVars is a list of extra environment variables to set with the stateful set. These could be
+  # used to include variables required for auto-unseal.
+  extraEnvironmentVars:
+    VAULT_CACERT: /vault/userconfig/tls-secret/ca.crt
+
+  # extraVolumes is a list of extra volumes to mount. These will be exposed
+  # to Vault in the path `/vault/userconfig/<name>/`.
+  extraVolumes:
+    - type: secret
+      name: tls-secret
+    # - type: secret
+    #   name: kms-creds
+
+  # This configures the Vault Statefulset to create a PVC for audit logs.
+  # See https://www.vaultproject.io/docs/audit/index.html to know more
+  auditStorage:
+    enabled: true
+
+  standalone:
+    enabled: false
+
+  # Run Vault in "dev" mode. This requires no further setup, no state management,
+  # and no initialization. This is useful for experimenting with Vault without
+  # needing to unseal, store keys, et. al. All data is lost on restart - do not
+  # use dev mode for anything other than experimenting.
+  # See https://www.vaultproject.io/docs/concepts/dev-server.html to know more
+  dev:
+    enabled: false
+
+    # Set VAULT_DEV_ROOT_TOKEN_ID value
+    devRootToken: "root"
+
+  # Run Vault in "HA" mode.
+  ha:
+    enabled: true
+    # replicas: 5
+    replicas: 3
+    # Create a LoadBalancer service type. This is the recommended ingress for
+    # cross-cluster replication, but it may be useful for other cases too.
+    lb:
+      enabled: true
+      
+      # Local preserves the client source IP and avoids a second hop for
+      # LoadBalancer services, but risks potentially imbalanced traffic spreading.
+      externalTrafficPolicy: Local
+
+      # publishNotReadyAddresses indicates that any agent which deals with endpoints
+      # for this Service should disregard any indications of ready/not-ready.
+      publishNotReadyAddresses: false
+
+      # Extra annotations for the service definition. This can either be YAML or a
+      # YAML-formatted multi-line templated string map of the annotations to apply
+      # to the service.
+      
+      loadBalancerIP: 172.18.2.150
+      annotations: {}
+
+    raft:
+      enabled: true
+      setNodeId: true
+
+      config: |
+        ui = true
+        listener "tcp" {
+          address = "[::]:8200"
+          cluster_address = "[::]:8201"
+          tls_cert_file = "/vault/userconfig/tls-secret/tls.crt"
+          tls_key_file = "/vault/userconfig/tls-secret/tls.key"
+          tls_ca_cert_file = "/vault/userconfig/tls-secret/ca.crt"
+        }
+
+        storage "raft" {
+          path = "/vault/data"
+          retry_join {
+            leader_api_addr = "https://hcv2-vault-0.hcv2-vault-internal:8200"
+            leader_ca_cert_file = "/vault/userconfig/tls-secret/ca.crt"
+            leader_client_cert_file = "/vault/userconfig/tls-secret/tls.crt"
+            leader_client_key_file = "/vault/userconfig/tls-secret/tls.key"
+          }
+          retry_join {
+            leader_api_addr = "https://hcv2-vault-1.hcv2-vault-internal:8200"
+            leader_ca_cert_file = "/vault/userconfig/tls-secret/ca.crt"
+            leader_client_cert_file = "/vault/userconfig/tls-secret/tls.crt"
+            leader_client_key_file = "/vault/userconfig/tls-secret/tls.key"
+          }
+          retry_join {
+            leader_api_addr = "https://hcv2-vault-2.hcv2-vault-internal:8200"
+            leader_ca_cert_file = "/vault/userconfig/tls-secret/ca.crt"
+            leader_client_cert_file = "/vault/userconfig/tls-secret/tls.crt"
+            leader_client_key_file = "/vault/userconfig/tls-secret/tls.key"
+          }
+        }
+
+        service_registration "kubernetes" {}
+
+
+# Vault UI
+ui:
+  enabled: true
+  serviceType: "LoadBalancer"
+  serviceNodePort: null
+  externalPort: 8200
+
+  # For Added Security, edit the below
+  #loadBalancerSourceRanges:
+  #   - < Your IP RANGE Ex. 10.0.0.0/16 >
+  #   - < YOUR SINGLE IP Ex. 1.78.23.3/32 >

@@ -1,0 +1,62 @@
+# apiVersion: v1
+# kind: Service
+# metadata:
+#   name: hcvault-cluster-lb
+#   namespace: default
+#   labels:
+#     helm.sh/chart: vault-0.12.0
+#     app.kubernetes.io/name: vault-ui
+#     app.kubernetes.io/instance: vault
+#     app.kubernetes.io/managed-by: Helm
+# spec:
+#   loadBalancerIP: {{.HCV_CLUSTERIP}}
+#   selector:
+#     app.kubernetes.io/name: vault
+#     app.kubernetes.io/instance: vault
+#     component: server
+#     vault-active: "true"
+#   publishNotReadyAddresses: true
+#   ports:
+#     - name: https-ui
+#       port: 8200
+#       targetPort: 8200
+#     - name: https-replication
+#       port: 8201
+#       targetPort: 8201
+#   type: LoadBalancer
+{{ template "vault.mode" . }}
+{{- if and (eq .mode "ha" ) (eq (.Values.server.service.enabled | toString) "true" ) (eq (.Values.global.enabled | toString) "true") (eq (.Values.server.ha.lb.enabled | toString) "true") }}
+# LoadBalancer for active Vault pod
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ template "vault.fullname" . }}-lb
+  namespace: {{ .Release.Namespace }}
+  labels:
+    helm.sh/chart: {{ include "vault.chart" . }}
+    app.kubernetes.io/name: {{ include "vault.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+  annotations:
+{{ template "vault.lb.annotations" .}}
+spec:
+  type: LoadBalancer
+  loadBalancerIP: {{ .Values.server.ha.lb.loadBalancerIP }} 
+  externalTrafficPolicy: {{ .Values.server.ha.lb.externalTrafficPolicy }}
+  publishNotReadyAddresses: {{ .Values.server.ha.lb.publishNotReadyAddresses }}
+  ports:
+    - name: {{ include "vault.scheme" . }}
+      port: {{ .Values.server.service.port }}
+      targetPort: {{ .Values.server.service.targetPort }}
+    - name: https-internal
+      port: 8201
+      targetPort: 8201
+    - name: {{ include "vault.scheme" . }}-rep
+      port: 8202
+      targetPort: 8202
+  selector:
+    app.kubernetes.io/name: {{ include "vault.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    component: server
+    vault-active: "true"
+{{- end }}

@@ -1,0 +1,69 @@
+# Setup docker tap
+
+Redo after reboot.
+
+./sbin/docker_tap_up.sh
+
+ifconfig:
+tap1: flags=8843<UP,BROADCAST,RUNNING,SIMPLEX,MULTICAST> mtu 1500
+	ether 9a:ba:00:dc:49:65
+	inet 10.0.75.1 netmask 0xfffffffc broadcast 10.0.75.3
+	media: autoselect
+	status: active
+	open (pid 16183)
+
+
+sudo route -v add -net 172.18.0.1 -netmask 255.255.0.0 10.0.75.2
+output from above:
+u: inet 172.18.0.1; u: inet 10.0.75.2; u: inet 255.255.0.0; RTM_ADD: Add Route: len 132, pid: 0, seq 1, errno 0, flags:<UP,GATEWAY,STATIC>
+locks:  inits:
+sockaddrs: <DST,GATEWAY,NETMASK>
+ 172.18.0.1 10.0.75.2 255.255.0.0
+add net 172.18.0.1: gateway 10.0.75.2
+
+
+
+### General kind commands ###
+
+# Start Cluster 1
+
+kind create cluster --name hcv-cluster1 --config hcv-cluster1.yaml
+
+# Start Cluster 2
+
+kind create cluster --name hcv-cluster2 --config hcv-cluster2.yaml
+kind delete cluster --name hcv-cluster1
+kind delete cluster --name hcv-cluster2
+
+### General kubectl commands ###
+
+# Display PVC:
+
+kubectl get pv -o wide
+
+# Show cluster info:
+
+kubectl cluster-info --context kind-hcv-cluster2
+kubectl cluster-info --context kind-hcv-cluster1
+
+# Switch between contexts:
+
+kubectl config use-context kind-hcv-cluster1
+kubectl config use-context kind-hcv-cluster2
+
+# Show pod labels
+kubectl get pods --show-labels
+
+# Show pods with a particular label
+kubectl get pods --selector=vault-perf-standby=true
+kubectl get pods --selector=vault-sealed=true
+
+# Debug images
+kubectl run curl --image=radial/busyboxplus:curl -i --tty
+after ctrl-D: Session ended, resume using 'kubectl attach curl -c curl -i -t' command when the pod is running
+
+
+
+# Scrap Notes
+
+
