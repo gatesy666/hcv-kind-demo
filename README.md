@@ -29,5 +29,8 @@ The official [Hashicorp helm chart](https://github.com/hashicorp/vault-helm) cha
 To install 2 kind clusters and install a 3 nodes HCVault cluster on each:
 
 ```console
+$ cd tf-tls
+$ terraform apply
+$ cd ..
 $ ./setup-metallb-2-clusters.sh install
 ```
