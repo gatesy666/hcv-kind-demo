@@ -4,7 +4,8 @@ This repository contains a set of config and scripts to spin up multiple Hashico
 Once provisioned the instances can be used to demo Performance and DR replication as well as upgrade workflows.
 Still very much a work in progress.
 
-Inspired by:
+Inspired by:  
+
 https://banzaicloud.com/blog/multi-cluster-testing/  
 https://www.thehumblelab.com/kind-and-metallb-on-mac/  
 https://github.com/AlmirKadric-Published/docker-tuntap-osx  
